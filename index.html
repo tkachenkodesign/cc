@@ -85,17 +85,27 @@
                 const maxArrowSize = parseFloat(maxArrowSizeSlider.value);
                 const baseWeight = 2.5;
 
+                const originalCanvasSize = 800;
+                const scaleFactor = size / originalCanvasSize;
+                
+                const scaledResolution = resolution * scaleFactor;
+                const scaledMaxArrowSize = maxArrowSize * scaleFactor;
+                const scaledBaseWeight = baseWeight * scaleFactor;
+
                 currentCtx.clearRect(0, 0, size, size);
                 currentCtx.fillStyle = '#ffffff';
                 currentCtx.fillRect(0, 0, size, size);
 
-                for (let x = 0; x < size; x += resolution) {
-                    for (let y = 0; y < size; y += resolution) {
-                        const noiseValue = simplex.noise3D(x * 0.00005, y * 0.00005, noiseTime * 0.001);
+                for (let x = 0; x < size; x += scaledResolution) {
+                    for (let y = 0; y < size; y += scaledResolution) {
+                        const noiseX = (x / size) * originalCanvasSize;
+                        const noiseY = (y / size) * originalCanvasSize;
+
+                        const noiseValue = simplex.noise3D(noiseX * 0.00005, noiseY * 0.00005, noiseTime * 0.001);
                         const angle = map(noiseValue, -1, 1, 0, Math.PI * 16);
 
-                        const sizeNoise = simplex.noise3D(x * 0.01, y * 0.01, 100 + noiseTime * 0.001);
-                        const arrowSize = map(sizeNoise, -1, 1, 5, maxArrowSize);
+                        const sizeNoise = simplex.noise3D(noiseX * 0.01, noiseY * 0.01, 100 + noiseTime * 0.001);
+                        const arrowSize = map(sizeNoise, -1, 1, 5, scaledMaxArrowSize);
                         
                         const headSize = arrowSize * 0.15;
                         
@@ -105,10 +115,10 @@
                         
                         currentCtx.beginPath();
                         currentCtx.moveTo(0, 0);
-                        const overlap = 2;
+                        const overlap = 2 * scaleFactor;
                         currentCtx.lineTo(arrowSize - headSize + overlap, 0);
                         currentCtx.strokeStyle = '#000';
-                        currentCtx.lineWidth = baseWeight;
+                        currentCtx.lineWidth = scaledBaseWeight;
                         currentCtx.stroke();
 
                         currentCtx.beginPath();
@@ -132,7 +142,7 @@
                 resolutionValueSpan.textContent = resolution;
                 maxArrowSizeValueSpan.textContent = maxArrowSize;
                 
-                drawField(ctx, ctx, canvas.width);
+                drawField(canvas, ctx, canvas.width);
             }
 
             function resizeCanvas() {
