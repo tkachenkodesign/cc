@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="uk" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Інтерактивне Векторне Поле</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            aspect-ratio: 1 / 1;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body class="h-full antialiased text-slate-800 flex flex-col md:flex-row items-center justify-center p-4 md:p-8">
+
+    <div class="bg-white p-6 rounded-xl shadow-lg w-full md:w-1/3 lg:w-1/4 mb-4 md:mb-0 md:mr-6 flex-shrink-0">
+        <h1 class="text-xl font-bold mb-4 text-center">Налаштування Поля</h1>
+        
+        <div class="mb-4">
+            <label for="noiseTime" class="block text-sm font-medium mb-1">Фактор анімації (час)</label>
+            <input type="range" id="noiseTime" min="0" max="10000" step="1" value="0" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+            <span id="noiseTimeValue" class="text-xs text-slate-500 mt-1 block">0</span>
+        </div>
+
+        <div class="mb-4">
+            <label for="resolution" class="block text-sm font-medium mb-1">Щільність стрілок</label>
+            <input type="range" id="resolution" min="5" max="50" step="1" value="15" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+            <span id="resolutionValue" class="text-xs text-slate-500 mt-1 block">15</span>
+        </div>
+        
+        <div class="mb-4">
+            <label for="maxArrowSize" class="block text-sm font-medium mb-1">Максимальний розмір стрілок</label>
+            <input type="range" id="maxArrowSize" min="1" max="100" step="1" value="90" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+            <span id="maxArrowSizeValue" class="text-xs text-slate-500 mt-1 block">90</span>
+        </div>
+        
+        <div class="mb-4">
+            <label for="downloadSize" class="block text-sm font-medium mb-1">Розмір для збереження (px)</label>
+            <select id="downloadSize" class="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-sm">
+                <option value="800" selected>800 x 800</option>
+                <option value="1500">1500 x 1500</option>
+                <option value="2500">2500 x 2500</option>
+                <option value="5000">5000 x 5000</option>
+            </select>
+        </div>
+
+        <button id="saveButton" class="w-full bg-slate-800 text-white py-2 rounded-lg font-semibold transition-colors hover:bg-slate-700">
+            Зберегти PNG
+        </button>
+    </div>
+
+    <div class="w-full md:w-2/3 lg:w-1/2 flex justify-center items-center">
+        <canvas id="vectorCanvas" class="w-full max-w-[800px]"></canvas>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const canvas = document.getElementById('vectorCanvas');
+            const ctx = canvas.getContext('2d');
+            const simplex = new SimplexNoise();
+
+            const noiseTimeSlider = document.getElementById('noiseTime');
+            const resolutionSlider = document.getElementById('resolution');
+            const maxArrowSizeSlider = document.getElementById('maxArrowSize');
+            const downloadSizeSelect = document.getElementById('downloadSize');
+            const saveButton = document.getElementById('saveButton');
+
+            const noiseTimeValueSpan = document.getElementById('noiseTimeValue');
+            const resolutionValueSpan = document.getElementById('resolutionValue');
+            const maxArrowSizeValueSpan = document.getElementById('maxArrowSizeValue');
+
+            function map(value, start1, stop1, start2, stop2) {
+                return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+            }
+
+            function drawField(currentCanvas, currentCtx, size) {
+                const noiseTime = parseFloat(noiseTimeSlider.value);
+                const resolution = parseFloat(resolutionSlider.value);
+                const maxArrowSize = parseFloat(maxArrowSizeSlider.value);
+                const baseWeight = 2.5;
+
+                currentCtx.clearRect(0, 0, size, size);
+                currentCtx.fillStyle = '#ffffff';
+                currentCtx.fillRect(0, 0, size, size);
+
+                for (let x = 0; x < size; x += resolution) {
+                    for (let y = 0; y < size; y += resolution) {
+                        const noiseValue = simplex.noise3D(x * 0.00005, y * 0.00005, noiseTime * 0.001);
+                        const angle = map(noiseValue, -1, 1, 0, Math.PI * 16);
+
+                        const sizeNoise = simplex.noise3D(x * 0.01, y * 0.01, 100 + noiseTime * 0.001);
+                        const arrowSize = map(sizeNoise, -1, 1, 5, maxArrowSize);
+                        
+                        const headSize = arrowSize * 0.15;
+                        
+                        currentCtx.save();
+                        currentCtx.translate(x, y);
+                        currentCtx.rotate(angle);
+                        
+                        currentCtx.beginPath();
+                        currentCtx.moveTo(0, 0);
+                        const overlap = 2;
+                        currentCtx.lineTo(arrowSize - headSize + overlap, 0);
+                        currentCtx.strokeStyle = '#000';
+                        currentCtx.lineWidth = baseWeight;
+                        currentCtx.stroke();
+
+                        currentCtx.beginPath();
+                        currentCtx.moveTo(arrowSize, 0);
+                        currentCtx.lineTo(arrowSize - headSize, headSize / 2);
+                        currentCtx.lineTo(arrowSize - headSize, -headSize / 2);
+                        currentCtx.closePath();
+                        currentCtx.fillStyle = '#000';
+                        currentCtx.fill();
+                        
+                        currentCtx.restore();
+                    }
+                }
+            }
+            
+            function redrawCanvas() {
+                const resolution = parseFloat(resolutionSlider.value);
+                const maxArrowSize = parseFloat(maxArrowSizeSlider.value);
+
+                noiseTimeValueSpan.textContent = noiseTimeSlider.value;
+                resolutionValueSpan.textContent = resolution;
+                maxArrowSizeValueSpan.textContent = maxArrowSize;
+                
+                drawField(ctx, ctx, canvas.width);
+            }
+
+            function resizeCanvas() {
+                const parentWidth = canvas.parentElement.clientWidth;
+                canvas.width = Math.min(800, parentWidth);
+                canvas.height = canvas.width;
+                redrawCanvas();
+            }
+            window.addEventListener('resize', resizeCanvas);
+            
+            noiseTimeSlider.addEventListener('input', redrawCanvas);
+            resolutionSlider.addEventListener('input', redrawCanvas);
+            maxArrowSizeSlider.addEventListener('input', redrawCanvas);
+
+            saveButton.addEventListener('click', () => {
+                const desiredSize = parseInt(downloadSizeSelect.value);
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = desiredSize;
+                tempCanvas.height = desiredSize;
+
+                drawField(tempCanvas, tempCtx, desiredSize);
+                
+                const link = document.createElement('a');
+                link.download = `vector_field_${desiredSize}x${desiredSize}.png`;
+                link.href = tempCanvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+            
+            resizeCanvas();
+        };
+    </script>
+</body>
+</html>
